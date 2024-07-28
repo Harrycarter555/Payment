@@ -114,6 +114,15 @@ def razorpay_webhook():
             payment_id = json_data.get('payload', {}).get('payment', {}).get('entity', {}).get('id')
             logger.info(f"Payment captured: {payment_id}")
 
+            # Find the corresponding chat_id from your database or other storage
+            chat_id = find_chat_id_by_payment_id(payment_id)  # Implement this function
+
+            if chat_id:
+                # Send the full file link to the user
+                full_file_link = os.getenv("FULL_FILE_LINK")
+                bot.send_message(chat_id=chat_id, text=f'Thank you for your payment! You can download your full file from the following link: {full_file_link}')
+                logger.info(f"Full file link sent to chat_id: {chat_id}")
+
         return 'OK'
     except Exception as e:
         logger.error(f"Error in Razorpay webhook: {e}")
@@ -149,6 +158,11 @@ def validate_signature(payload_str, signature, secret):
         digestmod=hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(generated_signature, signature)
+
+def find_chat_id_by_payment_id(payment_id):
+    # Implement a function to find chat_id associated with the payment_id
+    # This might involve querying your database or another storage solution
+    pass
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
