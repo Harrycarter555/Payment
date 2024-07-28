@@ -70,6 +70,21 @@ dispatcher.add_handler(MessageHandler(Filters.successful_payment, successful_pay
 def home():
     return 'Hello World'
 
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    try:
+        json_data = request.get_json()
+        if json_data is None:
+            logger.warning("Received empty data")
+            return 'Bad Request', 400
+
+        update = Update.de_json(json_data, bot)
+        dispatcher.process_update(update)
+        return 'OK'
+    except Exception as e:
+        logger.error(f"Error in webhook: {e}")
+        return 'Internal Server Error', 500
+
 @app.route('/webhook/razorpay', methods=['POST'])
 def razorpay_webhook():
     try:
