@@ -114,15 +114,10 @@ def razorpay_webhook():
             payment_id = json_data.get('payload', {}).get('payment', {}).get('entity', {}).get('id')
             logger.info(f"Payment captured: {payment_id}")
 
-            # Find the corresponding chat_id from your database or other storage
-            chat_id = find_chat_id_by_payment_id(payment_id)  # Implement this function
-
-            if chat_id:
-                # Send the full file link to the user
-                full_file_link = os.getenv("FULL_FILE_LINK")
-                bot.send_message(chat_id=chat_id, text=f'Thank you for your payment! You can download your full file from the following link: {full_file_link}')
-                logger.info(f"Full file link sent to chat_id: {chat_id}")
-
+            # Notify user or process payment here
+            # For example, send a file link to the user
+            # context.bot.send_message(chat_id=user_chat_id, text=f"Your full file is available at: {os.getenv('FULL_FILE_LINK')}")
+            
         return 'OK'
     except Exception as e:
         logger.error(f"Error in Razorpay webhook: {e}")
@@ -151,6 +146,36 @@ def setup_webhook():
         error_message = response.json().get('description', 'Unknown error')
         return f"Webhook setup failed: {error_message}", response.status_code
 
+@app.route('/setup-razorpay-webhook', methods=['POST'])
+def setup_razorpay_webhook():
+    webhook_url = 'https://paymentq.vercel.app/webhook/razorpay'
+    razorpay_secret = os.getenv('RAZORPAY_SECRET')
+
+    if not razorpay_secret:
+        return "Razorpay secret is not configured", 500
+
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Basic {razorpay_secret}'
+    }
+    
+    payload = {
+        'url': webhook_url,
+        'event': 'payment_captured'
+    }
+    
+    response = requests.post(
+        'https://api.razorpay.com/v1/webhooks',
+        headers=headers,
+        json=payload
+    )
+
+    if response.status_code == 200 and response.json().get('id'):
+        return "Razorpay webhook setup ok"
+    else:
+        error_message = response.json().get('error', {}).get('description', 'Unknown error')
+        return f"Razorpay webhook setup failed: {error_message}", response.status_code
+
 def validate_signature(payload_str, signature, secret):
     generated_signature = hmac.new(
         key=secret.encode('utf-8'),
@@ -158,11 +183,6 @@ def validate_signature(payload_str, signature, secret):
         digestmod=hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(generated_signature, signature)
-
-def find_chat_id_by_payment_id(payment_id):
-    # Implement a function to find chat_id associated with the payment_id
-    # This might involve querying your database or another storage solution
-    pass
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
