@@ -141,7 +141,7 @@ def setup_webhook():
         error_message = response.json().get('description', 'Unknown error')
         return f"Webhook setup failed: {error_message}", response.status_code
 
-@app.route('/setup-razorpay-webhook', methods=['GET','POST'])
+@app.route('/setup-razorpay-webhook', methods=['POST'])
 def setup_razorpay_webhook():
     webhook_url = 'https://paymentq.vercel.app/webhook/razorpay'
     razorpay_secret = os.getenv('RAZORPAY_SECRET')
