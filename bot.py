@@ -90,6 +90,7 @@ def razorpay_webhook():
     try:
         razorpay_secret = os.getenv('RAZORPAY_SECRET')
         if not razorpay_secret:
+            logger.error("Razorpay secret is not configured.")
             return jsonify({'status': 'Internal Server Error', 'message': 'Razorpay secret is not configured'}), 500
 
         headers = request.headers
@@ -147,18 +148,18 @@ def setup_razorpay_webhook():
     razorpay_secret = os.getenv('RAZORPAY_SECRET')
 
     if not razorpay_secret:
-        return "Razorpay secret is not configured", 500
+        return jsonify({'status': 'Internal Server Error', 'message': 'Razorpay secret is not configured'}), 500
 
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Basic {razorpay_secret}'
     }
-    
+
     payload = {
         'url': webhook_url,
         'event': 'payment_captured'
     }
-    
+
     response = requests.post(
         'https://api.razorpay.com/v1/webhooks',
         headers=headers,
@@ -166,10 +167,10 @@ def setup_razorpay_webhook():
     )
 
     if response.status_code == 200 and response.json().get('id'):
-        return "Razorpay webhook setup ok"
+        return jsonify({'status': 'OK', 'message': 'Razorpay webhook setup ok'}), 200
     else:
         error_message = response.json().get('error', {}).get('description', 'Unknown error')
-        return f"Razorpay webhook setup failed: {error_message}", response.status_code
+        return jsonify({'status': 'Failed', 'message': f'Razorpay webhook setup failed: {error_message}'}), response.status_code
 
 def validate_signature(payload_str, signature, secret):
     generated_signature = hmac.new(
