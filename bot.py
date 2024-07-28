@@ -88,40 +88,35 @@ def webhook():
 @app.route('/webhook/razorpay', methods=['POST'])
 def razorpay_webhook():
     try:
-        headers = request.headers
-        request_body = request.data.decode('utf-8')
-        json_data = request.get_json()
-        if json_data is None:
-            logger.warning("Received empty data")
-            return 'Bad Request', 400
-
         razorpay_secret = os.getenv('RAZORPAY_SECRET')
         if not razorpay_secret:
-            logger.error("Razorpay secret is not configured.")
-            return 'Internal Server Error', 500
+            return jsonify({'status': 'Internal Server Error', 'message': 'Razorpay secret is not configured'}), 500
 
+        headers = request.headers
+        request_body = request.get_data(as_text=True)
         razorpay_signature = headers.get('X-Razorpay-Signature')
+
         if not razorpay_signature:
             logger.error("Razorpay signature is missing from request headers.")
-            return 'Unauthorized', 401
+            return jsonify({'status': 'Unauthorized'}), 401
 
         if not validate_signature(request_body, razorpay_signature, razorpay_secret):
             logger.warning("Invalid Razorpay signature")
-            return 'Unauthorized', 401
+            return jsonify({'status': 'Unauthorized'}), 401
 
-        event_type = json_data.get('event')
-        if event_type == 'payment_captured':
-            payment_id = json_data.get('payload', {}).get('payment', {}).get('entity', {}).get('id')
+        data = request.json
+        if data.get('event') == 'payment_captured':
+            payment_id = data['payload']['payment']['entity']['id']
             logger.info(f"Payment captured: {payment_id}")
 
             # Notify user or process payment here
             # For example, send a file link to the user
             # context.bot.send_message(chat_id=user_chat_id, text=f"Your full file is available at: {os.getenv('FULL_FILE_LINK')}")
-            
-        return 'OK'
+
+        return jsonify({'status': 'OK'}), 200
     except Exception as e:
         logger.error(f"Error in Razorpay webhook: {e}")
-        return 'Internal Server Error', 500
+        return jsonify({'status': 'Internal Server Error'}), 500
 
 @app.route('/favicon.ico')
 def favicon():
@@ -146,7 +141,7 @@ def setup_webhook():
         error_message = response.json().get('description', 'Unknown error')
         return f"Webhook setup failed: {error_message}", response.status_code
 
-@app.route('/setup-razorpay-webhook', methods=['POST'])
+@app.route('/setup-razorpay-webhook', methods=['GET','POST'])
 def setup_razorpay_webhook():
     webhook_url = 'https://paymentq.vercel.app/webhook/razorpay'
     razorpay_secret = os.getenv('RAZORPAY_SECRET')
